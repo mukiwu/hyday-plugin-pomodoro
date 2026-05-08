@@ -1,7 +1,7 @@
 {
   "id": "pomodoro",
   "name": "Pomodoro",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "main": "main.js",
   "minHydayVersion": "0.6.0",
   "description": "番茄鐘計時器，常駐右上角 nav bar，點 icon 展開計時面板。25 分鐘專心、5 分鐘休息。",

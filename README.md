@@ -17,9 +17,15 @@
 { "workMinutes": 25, "breakMinutes": 5, "completedToday": 4, "lastDate": "2026-05-08" }
 ```
 
-## v2.0.0 變更
+## 變更紀錄
 
-- 從 sidebar 全螢幕 view 改成 nav bar status item + popover panel（更輕量、隨時可看）
+**v2.1.0**
+- 階段結束三層通知：sticky toast + 系統 native notification + 雙音 beep
+- 第一次按「開始」會跳系統通知授權（可拒絕，仍會有 toast + beep）
+- toast 改為持久顯示（要點才關），離開電腦回來仍看得到
+
+**v2.0.0**
+- 從 sidebar 全螢幕 view 改成 nav bar status item + popover panel
 - 計時器在背景運作，popover 關閉不影響進度
 
 ## 權限

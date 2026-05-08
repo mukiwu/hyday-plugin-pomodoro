@@ -17,6 +17,7 @@ class PomodoroPlugin {
     this._remaining = 0;
     this._timerId = null;
     this._render = null;
+    this._audioCtx = null;
   }
 
   async onload() {
@@ -45,6 +46,10 @@ class PomodoroPlugin {
     if (this._timerId) {
       clearInterval(this._timerId);
       this._timerId = null;
+    }
+    if (this._audioCtx) {
+      try { void this._audioCtx.close(); } catch (e) { void e; }
+      this._audioCtx = null;
     }
     for (const h of this._handles) {
       try {
@@ -82,6 +87,12 @@ class PomodoroPlugin {
   }
 
   _start() {
+    // _start runs in a user-gesture context (button click), the only safe
+    // place to: (1) unlock AudioContext for later beep, (2) request
+    // Notification permission without surprising the user.
+    this._unlockAudio();
+    this._requestNotificationPermission();
+
     if (!this._timerId && this._mode === 'idle') {
       this._mode = 'work';
       this._remaining = this._data.workMinutes * 60;
@@ -95,6 +106,80 @@ class PomodoroPlugin {
       if (this._render) this._render();
     }, 1000);
     if (this._render) this._render();
+  }
+
+  _unlockAudio() {
+    if (this._audioCtx) return;
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      this._audioCtx = new Ctx();
+      // Some browsers create the context in 'suspended'; resume needs gesture.
+      if (this._audioCtx.state === 'suspended') {
+        void this._audioCtx.resume();
+      }
+    } catch (e) {
+      void e;
+    }
+  }
+
+  _requestNotificationPermission() {
+    if (typeof Notification === 'undefined') return;
+    if (Notification.permission === 'default') {
+      try {
+        void Notification.requestPermission();
+      } catch (e) {
+        void e;
+      }
+    }
+  }
+
+  _playBeep(highPitch) {
+    if (!this._audioCtx) return;
+    try {
+      const ctx = this._audioCtx;
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = highPitch ? 1000 : 800;
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.25, now + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.45);
+    } catch (e) {
+      void e;
+    }
+  }
+
+  _sendNativeNotification(title, body) {
+    if (typeof Notification === 'undefined') return;
+    if (Notification.permission !== 'granted') return;
+    try {
+      const n = new Notification(title, {
+        body,
+        silent: true, // we play our own beep
+      });
+      // Auto-close after 10s in case OS doesn't.
+      setTimeout(() => {
+        try { n.close(); } catch (e) { void e; }
+      }, 10000);
+    } catch (e) {
+      void e;
+    }
+  }
+
+  _notify(title, body, type) {
+    // 1) In-app toast — sticky so the user sees it after returning from another app
+    this.app.ui.showNotice(title + ' — ' + body, { type, duration: 0 });
+    // 2) System native notification — visible even when Hyday isn't focused
+    this._sendNativeNotification(title, body);
+    // 3) Audible beep (double-beep for end-of-phase)
+    this._playBeep(false);
+    setTimeout(() => this._playBeep(true), 220);
   }
 
   _pause() {
@@ -122,11 +207,11 @@ class PomodoroPlugin {
       this._resetTodayIfNeeded();
       this._data.completedToday = (this._data.completedToday || 0) + 1;
       void this._saveData();
-      this.app.ui.showNotice('專心時段結束！休息一下', { type: 'success' });
+      this._notify('Pomodoro 完成', '專心時段結束！休息 ' + this._data.breakMinutes + ' 分鐘。', 'success');
       this._mode = 'break';
       this._remaining = this._data.breakMinutes * 60;
     } else if (this._mode === 'break') {
-      this.app.ui.showNotice('休息結束，下一輪開始', { type: 'info' });
+      this._notify('休息結束', '回到工作，下一輪開始。', 'info');
       this._mode = 'work';
       this._remaining = this._data.workMinutes * 60;
     }
