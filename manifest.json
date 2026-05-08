@@ -1,12 +1,12 @@
 {
   "id": "pomodoro",
   "name": "Pomodoro",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "main": "main.js",
   "minHydayVersion": "0.6.0",
-  "description": "番茄鐘計時器。25 分鐘專心、5 分鐘休息——簡單但有效。",
+  "description": "番茄鐘計時器，常駐右上角 nav bar，點 icon 展開計時面板。25 分鐘專心、5 分鐘休息。",
   "author": "Hyday Team",
   "authorUrl": "https://hyday.web.app",
-  "permissions": ["ui:sidebar", "storage"],
+  "permissions": ["ui:statusBar", "storage"],
   "tags": ["productivity", "focus"]
 }

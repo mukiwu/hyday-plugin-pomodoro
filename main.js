@@ -12,7 +12,6 @@ class PomodoroPlugin {
     this.app = app;
     this.manifest = manifest;
     this._handles = [];
-    this._viewHandle = null;
     this._data = { ...DEFAULT_DATA };
     this._mode = 'idle';
     this._remaining = 0;
@@ -25,21 +24,19 @@ class PomodoroPlugin {
     this._resetTodayIfNeeded();
     this._remaining = this._data.workMinutes * 60;
 
-    this._viewHandle = this.app.ui.registerView({
-      id: 'main',
-      title: 'Pomodoro',
-      mount: (container) => this._mount(container),
-    });
-    this._handles.push(this._viewHandle);
-
     this._handles.push(
-      this.app.ui.addSidebarItem({
-        id: 'open',
+      this.app.ui.addStatusBarItem({
+        id: 'pomodoro',
         label: 'Pomodoro',
         icon: 'timer',
-        order: 20,
-        onClick: () => this._viewHandle && this._viewHandle.open(),
+        position: 'navBar',
+        order: 5,
         badge: () => (this._mode === 'idle' ? undefined : 1),
+        panel: {
+          width: 280,
+          maxHeight: 360,
+          mount: (container, close) => this._mount(container, close),
+        },
       }),
     );
   }
@@ -85,7 +82,7 @@ class PomodoroPlugin {
   }
 
   _start() {
-    if (this._timerId || this._mode === 'idle') {
+    if (!this._timerId && this._mode === 'idle') {
       this._mode = 'work';
       this._remaining = this._data.workMinutes * 60;
     }
@@ -135,13 +132,12 @@ class PomodoroPlugin {
     }
   }
 
-  _mount(container) {
+  _mount(container, _close) {
     container.style.display = 'flex';
     container.style.flexDirection = 'column';
     container.style.alignItems = 'center';
-    container.style.justifyContent = 'center';
-    container.style.gap = '24px';
-    container.style.padding = '40px';
+    container.style.gap = '14px';
+    container.style.padding = '20px 16px';
 
     const phaseEl = document.createElement('div');
     phaseEl.style.fontFamily = 'monospace';
@@ -153,7 +149,7 @@ class PomodoroPlugin {
 
     const timerEl = document.createElement('div');
     timerEl.style.fontFamily = 'monospace';
-    timerEl.style.fontSize = '88px';
+    timerEl.style.fontSize = '56px';
     timerEl.style.fontWeight = '600';
     timerEl.style.color = 'var(--foreground, #111827)';
     timerEl.style.lineHeight = '1';
@@ -161,16 +157,16 @@ class PomodoroPlugin {
 
     const buttons = document.createElement('div');
     buttons.style.display = 'flex';
-    buttons.style.gap = '12px';
+    buttons.style.gap = '8px';
     container.appendChild(buttons);
 
     const makeBtn = (label, primary) => {
       const b = document.createElement('button');
       b.type = 'button';
       b.textContent = label;
-      b.style.padding = '10px 20px';
-      b.style.fontSize = '14px';
-      b.style.borderRadius = '8px';
+      b.style.padding = '6px 14px';
+      b.style.fontSize = '13px';
+      b.style.borderRadius = '6px';
       b.style.cursor = 'pointer';
       if (primary) {
         b.style.background = 'var(--foreground, #111827)';
@@ -195,16 +191,22 @@ class PomodoroPlugin {
     resetBtn.addEventListener('click', () => this._reset());
 
     const stats = document.createElement('div');
-    stats.style.fontSize = '14px';
+    stats.style.fontSize = '13px';
     stats.style.color = 'var(--foreground-muted, #6b7280)';
     container.appendChild(stats);
 
+    const divider = document.createElement('div');
+    divider.style.width = '100%';
+    divider.style.height = '1px';
+    divider.style.background = 'var(--border-subtle, #e5e7eb)';
+    divider.style.margin = '4px 0';
+    container.appendChild(divider);
+
     const settings = document.createElement('div');
     settings.style.display = 'flex';
-    settings.style.gap = '16px';
+    settings.style.gap = '12px';
     settings.style.fontSize = '13px';
     settings.style.color = 'var(--foreground-muted, #6b7280)';
-    settings.style.marginTop = '8px';
     container.appendChild(settings);
 
     const makeNumberInput = (label, key, min, max) => {
@@ -219,8 +221,8 @@ class PomodoroPlugin {
       input.min = String(min);
       input.max = String(max);
       input.value = String(this._data[key]);
-      input.style.width = '70px';
-      input.style.padding = '4px 8px';
+      input.style.width = '64px';
+      input.style.padding = '4px 6px';
       input.style.fontSize = '13px';
       input.style.borderRadius = '6px';
       input.style.border = '1px solid var(--border, #d1d5db)';
@@ -259,8 +261,8 @@ class PomodoroPlugin {
     this._render();
 
     return () => {
+      // Keep timer state alive across popover close — just stop rendering.
       this._render = null;
-      container.innerHTML = '';
     };
   }
 }
